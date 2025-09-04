@@ -1,0 +1,101 @@
+node rss_analyzer.js
+🔍 TechCrunch RSS取得開始...
+
+📊 フィード基本情報:
+タイトル: TechCrunch
+説明: Startup and Technology News
+最終更新: Mon, 01 Sep 2025 09:00:00 +0000
+記事数: 20
+
+📄 最初の記事のデータ構造:
+利用可能なフィールド:
+  creator: string
+  title: string
+  link: string
+  pubDate: string
+  dc:creator: string
+  content: string
+  contentSnippet: string
+  guid: string
+  categories: object
+  isoDate: string
+
+📋 記事例:
+タイトル: Lovable’s CEO isn’t too worried about the vibe-coding competition
+リンク: https://techcrunch.com/2025/09/01/lovables-ceo-isnt-too-worried-about-the-vibe-coding-competition/
+公開日: Mon, 01 Sep 2025 09:00:00 +0000
+カテゴリー: Startups,AI,Exclusive,Lovable
+作者: Dominic-Madori Davis
+要約 (contentSnippet): Lovable specializes in helping people build apps and websites, especially people with no coding experience. It's one of the standouts in the popular AI category known as vibe-coding, which lets users ...
+本文 (content): Lovable specializes in helping people build apps and websites, especially people with no coding experience. It's one of the standouts in the popular AI category known as vibe-coding, which lets users ...
+
+🏷️ 全記事のカテゴリー分析:
+利用可能カテゴリー: [
+  'Startups',
+  'AI',
+  'Exclusive',
+  'Lovable',
+  'TC',
+  'burning man',
+  'Government & Policy',
+  'online safety act',
+  'Media & Entertainment',
+  'Venture',
+  'Mubi',
+  'Sequoia Capital',
+  'jim jarmusch',
+  'Alphabet',
+  'Andrew Ferguson',
+  'Federal Trade Commission',
+  'gmail',
+  'Google',
+  'Transportation',
+  'GM',
+  'Tesla',
+  'Uber',
+  'Lyft',
+  'Waymo',
+  'Kodiak Robotics',
+  'techcrunch mobility',
+  'Hardware',
+  'nvidia',
+  'taco bell',
+  'evergreens',
+  'Fisker',
+  'AI model',
+  'alexandr wang',
+  'Mark Zuckerberg',
+  'Meta',
+  'scale',
+  'TechCrunch Disrupt 2025',
+  'Apps',
+  'Social',
+  'social media',
+  'TikTok',
+  'gig workers',
+  'ridehail',
+  'unionization',
+  'advanced driver assistance systems',
+  'Autopilot',
+  'lawsuits',
+  'Security',
+  'WhatsApp',
+  'Spyware',
+  'cybersecurity',
+  'cyberattack',
+  'zero-day',
+  'zero-click',
+  'AI chatbots',
+  'AI safety polcies',
+  'teen safety',
+  'age verfication',
+  'decentralized social media',
+  'fediverse',
+  'Mastodon',
+  'electric vehicles',
+  'nonprofits',
+  'Henrik Fisker',
+  'OpenAI',
+  'Generative AI',
+  'ChatGPT'
+]

@@ -1,0 +1,47 @@
+{
+  "name": "techcrunch-analyzer",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "TechCrunch Japanese Reader - AI-powered news translation app",
+  "main": "backend/server.js",
+  "scripts": {
+    "dev": "concurrently \"npm run dev --prefix frontend\" \"npm run dev --prefix backend\"",
+    "start": "npm start --prefix backend",
+    "build": "npm run build --prefix frontend",
+    "frontend": "npm run dev --prefix frontend",
+    "backend": "npm run dev --prefix backend",
+    "fetch": "cd backend && node translation-manager.js fetch",
+    "translate": "cd backend && node translation-manager.js translate",
+    "cleanup": "cd backend && node translation-manager.js cleanup",
+    "reset": "cd backend && node translation-manager.js reset",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "techcrunch",
+    "news",
+    "translation",
+    "rss",
+    "react",
+    "pwa",
+    "deepl"
+  ],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "axios": "^1.11.0",
+    "cors": "^2.8.5",
+    "dotenv": "^17.2.1",
+    "express": "^5.1.0",
+    "mongoose": "^8.18.0",
+    "rss-parser": "^3.13.0"
+  },
+  "devDependencies": {
+    "autoprefixer": "^10.4.21",
+    "concurrently": "^8.2.2",
+    "postcss": "^8.5.6",
+    "tailwindcss": "^4.1.12"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
