@@ -38,6 +38,7 @@ app.get('/api/articles', async (req, res) => {
       category, 
       limit = 20, 
       translated = 'true',
+      offset = 0,  // offsetパラメータを追加
       page = 1 
     } = req.query;
 
@@ -50,8 +51,8 @@ app.get('/api/articles', async (req, res) => {
       query.categories = { $in: [category] };
     }
 
-    // ページネーション
-    const skip = (parseInt(page) - 1) * parseInt(limit);
+    // offsetが指定されている場合はoffsetを使用、そうでなければpageを使用
+    const skip = offset ? parseInt(offset) : (parseInt(page) - 1) * parseInt(limit);
     
     const articles = await Article
       .find(query)
@@ -67,8 +68,9 @@ app.get('/api/articles', async (req, res) => {
     res.json({
       success: true,
       data: articles,
+      total: totalCount,  // フロントエンドで使用するため追加
       pagination: {
-        currentPage: parseInt(page),
+        currentPage: Math.floor(skip / parseInt(limit)) + 1,
         totalPages: Math.ceil(totalCount / parseInt(limit)),
         totalCount,
         hasNext: skip + articles.length < totalCount
