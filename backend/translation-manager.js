@@ -121,7 +121,7 @@ class TranslationManager {
   }
 
   // 未翻訳記事の翻訳処理
-  async translateUntranslatedArticles(batchSize = 5) {
+  async translateUntranslatedArticles(batchSize = 10) {
     try {
       console.log('🌐 未翻訳記事の翻訳開始...');
       
