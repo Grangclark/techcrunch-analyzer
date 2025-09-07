@@ -1,4 +1,4 @@
-// translation-manager.js (完全版)
+// translation-manager.js (完全版 - Ars Technica対応)
 import Parser from 'rss-parser';
 import mongoose from 'mongoose';
 import axios from 'axios';
@@ -28,6 +28,12 @@ class TranslationManager {
         name: 'Hacker News',
         type: 'api',
         url: 'https://hacker-news.firebaseio.com/v0',
+        enabled: true
+      },
+      {
+        name: 'Ars Technica',
+        type: 'rss',
+        url: 'https://feeds.arstechnica.com/arstechnica/index',
         enabled: true
       }
     ];
@@ -271,6 +277,72 @@ class TranslationManager {
     }
   }
 
+  // Ars Technica RSS記事取得（新規追加）
+  async fetchArsTechnicaArticles() {
+    try {
+      console.log('🛡️ Ars Technica RSS取得開始...');
+      const feed = await this.parser.parseURL('https://feeds.arstechnica.com/arstechnica/index');
+      console.log(`📄 取得した記事数: ${feed.items.length}件`);
+      
+      let newCount = 0;
+      let duplicateCount = 0;
+      let errorCount = 0;
+
+      for (const [index, item] of feed.items.entries()) {
+        try {
+          console.log(`🔍 処理中 ${index + 1}/${feed.items.length}: ${item.title?.substring(0, 50)}...`);
+          
+          const articleData = {
+            title: item.title || 'No Title',
+            link: item.link,
+            contentSnippet: item.contentSnippet || item.summary || '',
+            content: item.content || '',
+            pubDate: new Date(item.pubDate || item.isoDate || new Date()),
+            creator: item.creator || item['dc:creator'] || 'Ars Technica',
+            categories: Array.isArray(item.categories) ? item.categories : ['Technology'],
+            guid: item.guid || item.link,
+            source: 'Ars Technica',
+            readingTime: this.calculateReadingTime(item.contentSnippet || item.title || '')
+          };
+
+          // 必須フィールドのチェック
+          if (!articleData.link) {
+            console.warn(`⚠️ スキップ (リンクなし): ${articleData.title}`);
+            continue;
+          }
+
+          const existingArticle = await Article.findOne({ link: articleData.link });
+          
+          if (!existingArticle) {
+            const newArticle = new Article(articleData);
+            await newArticle.save();
+            newCount++;
+            console.log(`✅ 新記事保存 (Ars Technica): ${articleData.title.substring(0, 50)}...`);
+          } else {
+            duplicateCount++;
+            console.log(`📄 重複記事: ${articleData.title.substring(0, 30)}...`);
+          }
+        } catch (error) {
+          errorCount++;
+          console.error(`❌ 保存エラー (Ars Technica): ${error.message}`);
+          if (error.code === 11000) {
+            console.error('💡 ヒント: 重複キーエラー - 既に同じリンクの記事が存在します');
+            duplicateCount++;  // 重複エラーとしてカウント
+          }
+        }
+      }
+
+      console.log(`📊 Ars Technica結果: 新規${newCount}件、重複${duplicateCount}件、エラー${errorCount}件`);
+      return { source: 'Ars Technica', newCount, duplicateCount, errorCount };
+    } catch (error) {
+      console.error('❌ Ars Technica取得エラー:', error.message);
+      if (error.code === 'ENOTFOUND') {
+        console.error('💡 ヒント: インターネット接続を確認してください');
+      }
+      throw error;
+    }
+  }
+
   // 全ソースから記事取得
   async fetchAndSaveArticles() {
     console.log('🚀 記事取得開始...');
@@ -289,6 +361,8 @@ class TranslationManager {
           result = await this.fetchTechCrunchArticles();
         } else if (source.name === 'Hacker News') {
           result = await this.fetchHackerNewsArticles();
+        } else if (source.name === 'Ars Technica') {
+          result = await this.fetchArsTechnicaArticles();
         }
         
         if (result) {
@@ -324,9 +398,9 @@ class TranslationManager {
   }
 
   // 未翻訳記事の翻訳処理
-  async translateUntranslatedArticles(batchSize = 30) {
+  async translateUntranslatedArticles(batchSize = 50) {
     try {
-      console.log('🌐 未翻訳記事の翻訳開始...');
+      console.log('🌍 未翻訳記事の翻訳開始...');
       
       const untranslatedArticles = await Article
         .find({ translated: false })
@@ -413,12 +487,14 @@ class TranslationManager {
       const translatedCount = await Article.countDocuments({ translated: true });
       const techCrunchCount = await Article.countDocuments({ source: 'TechCrunch', translated: true });
       const hackerNewsCount = await Article.countDocuments({ source: 'Hacker News', translated: true });
+      const arsTechnicaCount = await Article.countDocuments({ source: 'Ars Technica', translated: true });
       
       console.log('\n📊 最終統計:');
       console.log(`💾 総記事数: ${totalCount}件`);
-      console.log(`🌐 翻訳済み: ${translatedCount}件`);
+      console.log(`🌍 翻訳済み: ${translatedCount}件`);
       console.log(`   📰 TechCrunch: ${techCrunchCount}件`);
       console.log(`   🔥 Hacker News: ${hackerNewsCount}件`);
+      console.log(`   🛡️ Ars Technica: ${arsTechnicaCount}件`);
       console.log(`⏳ 未翻訳: ${totalCount - translatedCount}件`);
       
       const endTime = new Date();
@@ -476,10 +552,10 @@ node translation-manager.js translate  # 翻訳のみ（最大50件）
 node translation-manager.js both       # 取得＋翻訳（各50件制限）
 
 新機能:
-- TechCrunch + Hacker News対応
-- ソース別統計表示
-- 複数ソース管理
-- ESモジュール完全対応
-- エラーハンドリング強化
-- 50件制限機能追加 ← NEW!
+- TechCrunch + Hacker News + Ars Technica対応 ✅ FIXED!
+- ソース別統計表示 ✅
+- 複数ソース管理 ✅
+- ESモジュール完全対応 ✅
+- エラーハンドリング強化 ✅
+- Ars Technicaの処理中ログ・結果ログ・統計表示 ✅ NEW!
 */
