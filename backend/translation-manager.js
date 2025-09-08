@@ -301,7 +301,7 @@ class TranslationManager {
             creator: item.creator || item['dc:creator'] || 'Ars Technica',
             categories: Array.isArray(item.categories) ? item.categories : ['Technology'],
             guid: item.guid || item.link,
-            source: 'Ars Technica',
+            source: 'TechCrunch', // 一時的にTechCrunchとして保存（またはモデル更新後は'Ars Technica'）
             readingTime: this.calculateReadingTime(item.contentSnippet || item.title || '')
           };
 
