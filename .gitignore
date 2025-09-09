@@ -34,7 +34,7 @@ backend/node_modules/
 backend/.env
 backend/logs/
 
-# Frontend specific  
+# Frontend specific 
 frontend/node_modules/
 frontend/build/
 frontend/.env.local

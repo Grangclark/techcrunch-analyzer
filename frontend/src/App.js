@@ -59,35 +59,75 @@ const TechCrunchReader = () => {
     }
   }, [selectedCategory, selectedSource]);
 
-  // データ取得関数
-  const fetchInitialData = async () => {
-    try {
-      setLoading(true);
-      const [articlesRes, categoriesRes, sourcesRes, statsRes] = await Promise.all([
-        fetch(`${API_BASE}/articles?limit=${ARTICLES_PER_PAGE}&offset=0`),
-        fetch(`${API_BASE}/categories`),
-        fetch(`${API_BASE}/sources`), // ソース一覧API追加
-        fetch(`${API_BASE}/stats`)
-      ]);
+  // App.jsの既存のfetchInitialData関数を以下に置き換えてください
 
-      const articlesData = await articlesRes.json();
-      const categoriesData = await categoriesRes.json();
-      const sourcesData = await sourcesRes.json();
-      const statsData = await statsRes.json();
+  // statsの変更を監視するuseEffect（デバッグ用） - useEffectセクションに追加
+  useEffect(() => {
+    console.log('Stats state updated:', stats);
+  }, [stats]);
 
-      setArticles(articlesData.data || []);
-      setCategories(categoriesData.data || []);
-      setSources(sourcesData.data || []);
-      setStats(statsData.data || {});
-      setCurrentOffset(ARTICLES_PER_PAGE);
-      setTotalArticles(articlesData.total || 0);
-      setHasMore((articlesData.data || []).length === ARTICLES_PER_PAGE);
-    } catch (error) {
-      console.error('データ取得エラー:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
+// App.jsの既存のfetchInitialData関数を以下に置き換えてください
+
+// statsの変更を監視するuseEffect（デバッグ用） - useEffectセクションに追加
+useEffect(() => {
+  console.log('Stats state updated:', stats);
+}, [stats]);
+
+// データ取得関数（sourcesエンドポイント除外版）
+const fetchInitialData = async () => {
+  try {
+    console.log('=== API呼び出し開始 ===');
+    setLoading(true);
+    
+    console.log('API_BASE:', API_BASE);
+    
+    const [articlesRes, categoriesRes, statsRes] = await Promise.all([
+      fetch(`${API_BASE}/articles?limit=${ARTICLES_PER_PAGE}&offset=0`),
+      fetch(`${API_BASE}/categories`),
+      fetch(`${API_BASE}/stats`)
+    ]);
+
+    console.log('=== API レスポンス確認 ===');
+    console.log('articlesRes status:', articlesRes.status, 'ok:', articlesRes.ok);
+    console.log('categoriesRes status:', categoriesRes.status, 'ok:', categoriesRes.ok);
+    console.log('statsRes status:', statsRes.status, 'ok:', statsRes.ok);
+
+    // 各レスポンスの成功確認
+    if (!articlesRes.ok) throw new Error(`Articles API failed: ${articlesRes.status}`);
+    if (!categoriesRes.ok) throw new Error(`Categories API failed: ${categoriesRes.status}`);
+    if (!statsRes.ok) throw new Error(`Stats API failed: ${statsRes.status}`);
+
+    const articlesData = await articlesRes.json();
+    const categoriesData = await categoriesRes.json();
+    const statsData = await statsRes.json();
+
+    console.log('=== JSON パース成功 ===');
+    console.log('Stats API Response:', statsData);
+    console.log('Stats data:', statsData.data);
+    console.log('translatedArticles:', statsData.data?.translatedArticles);
+
+    setArticles(articlesData.data || []);
+    setCategories(categoriesData.data || []);
+    setSources([]); // 空配列をセット
+    setStats(statsData.data || {});
+    setCurrentOffset(ARTICLES_PER_PAGE);
+    setTotalArticles(articlesData.total || 0);
+    setHasMore((articlesData.data || []).length === ARTICLES_PER_PAGE);
+
+    console.log('=== setState完了 ===');
+
+  } catch (error) {
+    console.error('=== データ取得エラー ===');
+    console.error('Error message:', error.message);
+    console.error('Error details:', error);
+    
+    // エラー時のフォールバック値を設定
+    setStats({ translatedArticles: 0, totalArticles: 0 });
+  } finally {
+    setLoading(false);
+    console.log('=== API呼び出し完了 ===');
+  }
+};
 
   // カテゴリー・ソース変更時のリセット＆再取得
   const resetAndFetchArticles = async (category, source) => {
@@ -408,7 +448,8 @@ const TechCrunchReader = () => {
             </button>
           </div>
 
-          {/* ソースフィルター */}
+          // ソースフィルターを一時的に非表示
+          {/*
           <div className="flex items-center gap-3 mb-4" style={{ overflowX: 'auto', paddingBottom: '0.5rem' }}>
             <Filter size={18} style={{ color: '#6b7280', flexShrink: 0 }} />
             <span style={{ fontSize: '0.875rem', color: '#6b7280', fontWeight: '500', flexShrink: 0 }}>ソース:</span>
@@ -430,6 +471,7 @@ const TechCrunchReader = () => {
               </button>
             ))}
           </div>
+          */}
 
           {/* カテゴリーフィルター */}
           <div className="flex items-center gap-3" style={{ overflowX: 'auto', paddingBottom: '0.5rem' }}>
