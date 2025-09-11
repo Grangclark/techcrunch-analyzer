@@ -269,9 +269,9 @@ ${basicTranslation}`;
       let duplicateCount = 0;
       let errorCount = 0;
 
-      for (const [index, item] of feed.items.entries()) {
+      for (const [index, item] of feed.items.slice(0, 30).entries()) {
         try {
-          console.log(`🔍 処理中 ${index + 1}/${feed.items.length}: ${item.title?.substring(0, 50)}...`);
+          console.log(`🔍 処理中 ${index + 1}/${feed.items.length}: ${item.title?.substring(0, 30)}...`);
           
           const articleData = {
             title: item.title || 'No Title',
@@ -298,7 +298,7 @@ ${basicTranslation}`;
             const newArticle = new Article(articleData);
             await newArticle.save();
             newCount++;
-            console.log(`✅ 新記事保存 (TechCrunch): ${articleData.title.substring(0, 50)}...`);
+            console.log(`✅ 新記事保存 (TechCrunch): ${articleData.title.substring(0, 30)}...`);
           } else {
             duplicateCount++;
             console.log(`📄 重複記事: ${articleData.title.substring(0, 30)}...`);
@@ -432,9 +432,9 @@ ${basicTranslation}`;
       let duplicateCount = 0;
       let errorCount = 0;
 
-      for (const [index, item] of feed.items.entries()) {
+      for (const [index, item] of feed.items.slice(0, 30).entries()) {
         try {
-          console.log(`🔍 処理中 ${index + 1}/${feed.items.length}: ${item.title?.substring(0, 50)}...`);
+          console.log(`🔍 処理中 ${index + 1}/${feed.items.length}: ${item.title?.substring(0, 30)}...`);
           
           const articleData = {
             title: item.title || 'No Title',
@@ -461,7 +461,7 @@ ${basicTranslation}`;
             const newArticle = new Article(articleData);
             await newArticle.save();
             newCount++;
-            console.log(`✅ 新記事保存 (Ars Technica): ${articleData.title.substring(0, 50)}...`);
+            console.log(`✅ 新記事保存 (Ars Technica): ${articleData.title.substring(0, 30)}...`);
           } else {
             duplicateCount++;
             console.log(`📄 重複記事: ${articleData.title.substring(0, 30)}...`);
@@ -542,7 +542,7 @@ ${basicTranslation}`;
   }
 
   // 未翻訳記事の翻訳処理（修正版 - 拡張要約対応）
-  async translateUntranslatedArticles(batchSize = 50) {
+  async translateUntranslatedArticles(batchSize = 30) {
     try {
       console.log('🌍 未翻訳記事の翻訳開始...');
       
