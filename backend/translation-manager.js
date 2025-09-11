@@ -1,4 +1,4 @@
-// translation-manager.js (完全版 - Ars Technica対応)
+// translation-manager.js (修正版 - 翻訳プロンプト問題解決)
 import Parser from 'rss-parser';
 import mongoose from 'mongoose';
 import axios from 'axios';
@@ -52,9 +52,18 @@ class TranslationManager {
       
       console.log('✅ MongoDB接続成功');
       
-      // インデックス作成状況をチェック
-      const indexes = await Article.collection.getIndexes();
-      console.log('📋 既存インデックス:', Object.keys(indexes));
+      // インデックス作成状況をチェック（安全版）
+      try {
+        const indexes = await Article.collection.getIndexes();
+        console.log('📋 既存インデックス:', Object.keys(indexes));
+      } catch (indexError) {
+        if (indexError.message.includes('ns does not exist')) {
+          console.log('📋 新しいコレクションを作成します');
+          // コレクションが存在しない場合は何もしない（自動作成される）
+        } else {
+          console.warn('⚠️ インデックスチェック失敗:', indexError.message);
+        }
+      }
       
     } catch (error) {
       console.error('❌ MongoDB接続エラー:', error.message);
@@ -65,8 +74,8 @@ class TranslationManager {
     }
   }
 
-  // DeepL翻訳（エラーハンドリング強化）
-  async translateText(text, targetLang = 'JA') {
+  // DeepL翻訳（修正版 - 拡張要約対応）
+  async translateText(text, targetLang = 'JA', isContentSnippet = false) {
     if (!this.deeplApiKey) {
       console.warn('⚠️ DeepL APIキーが設定されていません');
       return `[翻訳なし] ${text}`;
@@ -82,20 +91,80 @@ class TranslationManager {
       
       const params = new URLSearchParams();
       params.append('auth_key', this.deeplApiKey);
-      params.append('text', text);
-      params.append('target_lang', targetLang);
+      
+      // 要約の場合は2段階翻訳を使用
+      if (isContentSnippet) {
+        // 1段階目: 基本翻訳
+        params.append('text', text);
+        params.append('target_lang', targetLang);
+        
+        const response = await axios.post(apiUrl, params, {
+          headers: {
+            'Content-Type': 'application/x-www-form-urlencoded'
+          },
+          timeout: 15000
+        });
 
-      const response = await axios.post(apiUrl, params, {
-        headers: {
-          'Content-Type': 'application/x-www-form-urlencoded'
-        },
-        timeout: 10000  // 10秒タイムアウト
-      });
+        if (!response.data || !response.data.translations || response.data.translations.length === 0) {
+          throw new Error('翻訳レスポンスが不正です');
+        }
 
-      if (response.data && response.data.translations && response.data.translations.length > 0) {
-        return response.data.translations[0].text;
+        const basicTranslation = response.data.translations[0].text;
+        console.log(`   📝 基本翻訳完了: ${basicTranslation.substring(0, 50)}...`);
+        
+        // 遅延
+        await this.delay(2000);
+        
+        // 2段階目: 要約拡張（日本語から日本語での要約拡張）
+        const expansionPrompt = `以下の日本語テキストを、200文字程度の詳しく分かりやすい要約に拡張してください。元の内容を保持しながら、より具体的で理解しやすい説明にしてください：
+
+${basicTranslation}`;
+
+        const params2 = new URLSearchParams();
+        params2.append('auth_key', this.deeplApiKey);
+        params2.append('text', expansionPrompt);
+        params2.append('target_lang', 'JA');
+        params2.append('source_lang', 'JA');
+
+        const response2 = await axios.post(apiUrl, params2, {
+          headers: {
+            'Content-Type': 'application/x-www-form-urlencoded'
+          },
+          timeout: 20000
+        });
+
+        if (!response2.data || !response2.data.translations || response2.data.translations.length === 0) {
+          console.warn('   ⚠️ 拡張処理失敗 - 基本翻訳を使用');
+          return basicTranslation;
+        }
+
+        const expandedSummary = response2.data.translations[0].text;
+        
+        // プロンプト部分を除去（安全策）
+        const cleanedSummary = expandedSummary
+          .replace(/^.*?：\s*/s, '')  // プロンプト部分を除去
+          .replace(/^.*?:\s*/s, '')   // 英語プロンプトも除去
+          .trim();
+        
+        return cleanedSummary || basicTranslation;
+        
       } else {
-        throw new Error('翻訳レスポンスが不正です');
+        // 通常の翻訳（タイトルなど）
+        params.append('text', text);
+        params.append('target_lang', targetLang);
+
+        const response = await axios.post(apiUrl, params, {
+          headers: {
+            'Content-Type': 'application/x-www-form-urlencoded'
+          },
+          timeout: 15000
+        });
+
+        if (response.data && response.data.translations && response.data.translations.length > 0) {
+          return response.data.translations[0].text;
+        } else {
+          throw new Error('翻訳レスポンスが不正です');
+        }
       }
     } catch (error) {
       console.error('❌ 翻訳エラー詳細:');
@@ -111,6 +180,81 @@ class TranslationManager {
         console.error(`   メッセージ: ${error.message}`);
       }
       return `[翻訳失敗] ${text}`;
+    }
+  }
+
+  // 代替案: より安全な要約拡張処理
+  async translateAndExpandSummary(text) {
+    if (!this.deeplApiKey) {
+      console.warn('⚠️ DeepL APIキーが設定されていません');
+      return `[翻訳なし] ${text}`;
+    }
+
+    try {
+      const isFreeKey = this.deeplApiKey.endsWith(':fx');
+      const apiUrl = isFreeKey ? 
+        'https://api-free.deepl.com/v2/translate' : 
+        'https://api.deepl.com/v2/translate';
+
+      // まず通常翻訳を実行
+      const params1 = new URLSearchParams();
+      params1.append('auth_key', this.deeplApiKey);
+      params1.append('text', text);
+      params1.append('target_lang', 'JA');
+
+      const response1 = await axios.post(apiUrl, params1, {
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        timeout: 15000
+      });
+
+      if (!response1.data?.translations?.[0]) {
+        throw new Error('基本翻訳失敗');
+      }
+
+      const basicTranslation = response1.data.translations[0].text;
+      console.log(`   📝 基本翻訳: ${basicTranslation.substring(0, 50)}...`);
+
+      // 短い場合はそのまま返す
+      if (basicTranslation.length >= 150) {
+        return basicTranslation;
+      }
+
+      // 遅延
+      await this.delay(2000);
+
+      // 拡張処理（簡潔なプロンプト使用）
+      const expandPrompt = `次の日本語要約をより詳しく200文字程度に拡張: ${basicTranslation}`;
+      
+      const params2 = new URLSearchParams();
+      params2.append('auth_key', this.deeplApiKey);
+      params2.append('text', expandPrompt);
+      params2.append('target_lang', 'JA');
+      params2.append('source_lang', 'JA');
+
+      const response2 = await axios.post(apiUrl, params2, {
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        timeout: 20000
+      });
+
+      if (!response2.data?.translations?.[0]) {
+        console.warn('   ⚠️ 拡張失敗 - 基本翻訳使用');
+        return basicTranslation;
+      }
+
+      let expandedText = response2.data.translations[0].text;
+      
+      // プロンプト除去処理
+      expandedText = expandedText
+        .replace(/^.*?拡張:\s*/s, '')
+        .replace(/^.*?:\s*/s, '')
+        .replace(/^.*?：\s*/s, '')
+        .trim();
+
+      return expandedText || basicTranslation;
+
+    } catch (error) {
+      console.error(`   ❌ 要約拡張エラー: ${error.message}`);
+      return `[拡張失敗] ${text}`;
     }
   }
 
@@ -397,7 +541,7 @@ class TranslationManager {
     return results;
   }
 
-  // 未翻訳記事の翻訳処理
+  // 未翻訳記事の翻訳処理（修正版 - 拡張要約対応）
   async translateUntranslatedArticles(batchSize = 50) {
     try {
       console.log('🌍 未翻訳記事の翻訳開始...');
@@ -420,15 +564,37 @@ class TranslationManager {
           
           // タイトル翻訳
           console.log('   📤 タイトル翻訳中...');
-          const titleJa = await this.translateText(article.title);
-          await this.delay(1000);
+          const titleJa = await this.translateText(article.title, 'JA', false);
+          await this.delay(1500); // より安全な間隔
           
-          // 要約翻訳（contentSnippetがある場合のみ）
+          // 要約翻訳（contentSnippetがある場合のみ）- 改良版使用
           let contentSnippetJa = '';
           if (article.contentSnippet && article.contentSnippet.trim()) {
-            console.log('   📄 要約翻訳中...');
-            contentSnippetJa = await this.translateText(article.contentSnippet);
-            await this.delay(1000);
+            console.log('   📋 要約拡張翻訳中（200文字目標）...');
+            
+            // 3つの方法を順番に試す
+            try {
+              contentSnippetJa = await this.translateAndExpandSummary(article.contentSnippet);
+            } catch (error) {
+              console.warn('   ⚠️ 主要方法失敗 - 代替方法を試行');
+              try {
+                contentSnippetJa = await this.translateAndExpandWithJapanese(article.contentSnippet);
+              } catch (error2) {
+                console.warn('   ⚠️ 代替方法も失敗 - 基本翻訳のみ');
+                contentSnippetJa = await this.translateText(article.contentSnippet, 'JA', false);
+              }
+            }
+            
+            await this.delay(2000); // 拡張処理のためより長い間隔
+            
+            // 文字数チェックと詳細ログ
+            console.log(`   📏 最終要約文字数: ${contentSnippetJa.length}文字`);
+            console.log(`   📝 要約内容プレビュー: ${contentSnippetJa.substring(0, 80)}...`);
+            
+            // 目標に達していない場合の警告
+            if (contentSnippetJa.length < 100) {
+              console.warn(`   ⚠️ 要約が短めです (${contentSnippetJa.length}文字) - DeepL無料版制限の可能性`);
+            }
           }
 
           // DB更新
@@ -440,6 +606,9 @@ class TranslationManager {
           });
 
           console.log(`✅ 翻訳完了 (${article.source}): ${titleJa.substring(0, 50)}...`);
+          if (contentSnippetJa) {
+            console.log(`   🔍 要約: ${contentSnippetJa.substring(0, 100)}...`);
+          }
           
         } catch (error) {
           console.error(`❌ 翻訳エラー (${article.title.substring(0, 30)}...): ${error.message}`);
